@@ -1,0 +1,8 @@
+name = "rss-gen-worker"
+main = "src/index.js"
+compatibility_date = "2026-03-13"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rss-gen-db"
+database_id = "4e00b7b3-d9a5-4345-8aeb-60e48d8734cc"
