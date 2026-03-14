@@ -41,6 +41,7 @@ export default {
     if (request.method === 'GET' && requestUrl.pathname === '/feed') {
       const rawTargetUrl = requestUrl.searchParams.get('url');
       const rawSelector = requestUrl.searchParams.get('selector');
+  const rawScope = requestUrl.searchParams.get('scope');
       if (!rawTargetUrl) {
         return textResponse(
           'Query parameter "url" is required. Example: /feed?url=https://example.com',
@@ -105,6 +106,7 @@ async function handleFeed(rawTargetUrl, rawSelector, env) {
 function handleSubscribe(requestUrl, env) {
   const rawTargetUrl = requestUrl.searchParams.get('url');
   const rawSelector = requestUrl.searchParams.get('selector');
+  const rawScope = requestUrl.searchParams.get('scope');
   const rawTtrssBase = requestUrl.searchParams.get('ttrss') || (env && env.TTRSS_BASE) || DEFAULT_TTRSS_BASE;
 
   if (!rawTargetUrl) {
@@ -126,8 +128,11 @@ function handleSubscribe(requestUrl, env) {
     return textResponse(normalizedTtrss.error, 400);
   }
 
+  const scope = rawScope === 'page' ? 'page' : 'site';
+  const targetForFeed = scope === 'page' ? normalizedTarget.url : toSiteRootUrl(normalizedTarget.url);
+
   const feedUrl = new URL('/feed', requestUrl.origin);
-  feedUrl.searchParams.set('url', normalizedTarget.url);
+  feedUrl.searchParams.set('url', targetForFeed);
   if (normalizedSelector.selector) {
     feedUrl.searchParams.set('selector', normalizedSelector.selector);
   }
@@ -143,7 +148,14 @@ function buildBookmarklet(workerOrigin, ttrssBase) {
   const workerValue = JSON.stringify(workerOrigin);
   const ttrssValue = JSON.stringify(ttrssBase);
 
-  return `javascript:(function(){var worker=${workerValue};var ttrss=${ttrssValue};var url=worker+'/subscribe?url='+encodeURIComponent(window.location.href)+'&ttrss='+encodeURIComponent(ttrss);if(confirm('Subscribe generated feed in Tiny Tiny RSS?')){window.location.href=url;}})();`;
+  return `javascript:(function(){var worker=${workerValue};var ttrss=${ttrssValue};var url=worker+'/subscribe?url='+encodeURIComponent(window.location.href)+'&scope=site&ttrss='+encodeURIComponent(ttrss);if(confirm('Subscribe generated feed in Tiny Tiny RSS?')){window.location.href=url;}})();`;
+}
+function toSiteRootUrl(fullUrl) {
+  const url = new URL(fullUrl);
+  url.pathname = '/';
+  url.search = '';
+  url.hash = '';
+  return url.toString();
 }
 async function ensureSchema(db) {
   await db
@@ -970,6 +982,9 @@ function homePage(origin) {
   </body>
 </html>`;
 }
+
+
+
 
 
 
