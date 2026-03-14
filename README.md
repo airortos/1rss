@@ -1,14 +1,65 @@
 # RSS Feed Generator Worker
 
-Cloudflare Worker, который генерирует RSS 2.0 из любых веб-страниц без нативного RSS. Подписка через TT-RSS или любой RSS-агрегатор.
+Cloudflare Worker, который генерирует RSS 2.0 из веб-страниц без нативного RSS.
+Подписка через TT-RSS или любой RSS-агрегатор.
+
+Каждый `item` включает:
+- `title`
+- `link`
+- `guid`
+- `pubDate`
+- `description` (текстовый фрагмент статьи)
 
 ## Deploy to Cloudflare
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/airortos/1rss)
 
-> Замените `airortos` на ваш GitHub username после создания репозитория.
+## Использование
 
-После деплоя Cloudflare создаст D1 базу автоматически. Выполните в [D1 Console](https://dash.cloudflare.com) SQL из `schema.sql` для создания таблицы `feeds`:
+Базовый URL:
+- `https://<your-worker>.workers.dev/feed?url=example.com`
+
+Селектор (опционально):
+- `https://<your-worker>.workers.dev/feed?url=example.com&selector=main%20a`
+
+Поддерживаемые селекторы:
+- `a`
+- `main a`
+- `article a`
+- `.content a`
+- `#main a`
+
+## Bookmarklet для Chrome (подписка в Tiny Tiny RSS)
+
+1. Откройте:
+- `https://<your-worker>.workers.dev/bookmarklet`
+
+2. Скопируйте строку `javascript:...`.
+
+3. Создайте закладку в Chrome и вставьте этот код в поле URL.
+
+4. На любой странице нажмите закладку.
+
+Что произойдет:
+- bookmarklet откроет `.../subscribe?url=<текущая_страница>`
+- Worker сделает редирект в TT-RSS на:
+`/public.php?op=subscribe&feed_url=<наш_feed_url>`
+
+По умолчанию TT-RSS база:
+- `https://bakar.no/rss`
+
+Кастомный TT-RSS (опционально):
+- `https://<your-worker>.workers.dev/bookmarklet?ttrss=https://example.com/rss`
+
+## Ограничения под бесплатный Cloudflare
+
+Чтобы не выходить за free-tier лимиты, Worker ограничивает enrichment:
+- максимум `6` дополнительных запросов к страницам статей на один `/feed`-запрос
+- таймаут статьи: `7s`
+- лимит размера HTML статьи: `700 KB`
+- лимит длины `description`: `1800` символов
+
+## D1 схема
 
 ```sql
 CREATE TABLE IF NOT EXISTS feeds (
@@ -20,28 +71,16 @@ CREATE TABLE IF NOT EXISTS feeds (
 );
 ```
 
-## Использование
-
-**Добавить фид в TT-RSS:**
-- URL: `https://<ваш-worker>.workers.dev/feed?url=example.com`
-
-**Примеры:**
-- `https://rss-gen.xxx.workers.dev/feed?url=example.com`
-- `https://rss-gen.xxx.workers.dev/feed?url=https://news.ycombinator.com`
-
-## Ручной деплой через Dashboard
-
-1. [Cloudflare Dashboard](https://dash.cloudflare.com) → Workers & Pages → Create Worker
-2. D1 → Create database `rss-gen-db`
-3. Worker Settings → Add binding: `DB` → выберите `rss-gen-db`
-4. D1 Console → выполните SQL из `schema.sql`
-5. Quick Edit → вставьте код из `src/index.js`, Deploy
-
 ## Структура проекта
 
+```text
+1rss/
+├── plan.md
+├── README.md
+├── wrangler.toml
+├── schema.sql
+├── .gitignore
+└── src/
+    └── index.js
 ```
-├── src/index.js    # Код Worker
-├── schema.sql      # SQL для D1
-├── wrangler.toml   # Конфиг Cloudflare
-└── plan.md         # Подробный план разработки
-```
+
